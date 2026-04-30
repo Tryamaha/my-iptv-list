@@ -1,4 +1,4 @@
-const m3uUrl = "https://raw.githubusercontent.com/Tryamaha/my-iptv-list/main/index.m3u?nocache=" + Date.now();
+const m3uUrl = "./index.m3u?nocache=" + Date.now();
 
 let allChannels = [];
 let currentGroup = "All";
