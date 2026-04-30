@@ -12,34 +12,40 @@ const playlists = [
 ];
 
 let allChannels = [];
-let currentGroup = "All";
+let currentSection = "All";
 let currentHls = null;
+let favorites = JSON.parse(localStorage.getItem("iptv_favorites") || "[]");
+
+const elChannels = document.getElementById("channels");
+const elCategories = document.getElementById("categories");
+const elSearch = document.getElementById("search");
+const elStatus = document.getElementById("status");
+const elNowTitle = document.getElementById("nowTitle");
+const elNowGroup = document.getElementById("nowGroup");
+const player = document.getElementById("player");
 
 async function loadM3U() {
-  showLoading();
+  setStatus("Kanallar yükleniyor...");
 
   for (const playlist of playlists) {
     try {
       const res = await fetch(playlist);
       const text = await res.text();
+      const parsed = parseM3U(text);
 
-      const newChannels = parseM3U(text);
-
-      allChannels = [...allChannels, ...newChannels];
-      allChannels = Array.from(
-        new Map(allChannels.map(ch => [ch.url, ch])).values()
-      );
-
+      allChannels = [...allChannels, ...parsed];
+      allChannels = Array.from(new Map(allChannels.map(ch => [ch.url, ch])).values());
       allChannels.sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
-      renderCategories();
-      renderChannels();
-
-      await sleep(250);
+      renderAll();
+      setStatus(`${allChannels.length} kanal yüklendi`);
+      await sleep(200);
     } catch (e) {
       console.log("Playlist yüklenemedi:", playlist);
     }
   }
+
+  setStatus(`${allChannels.length} kanal hazır`);
 }
 
 function parseM3U(data) {
@@ -57,8 +63,8 @@ function parseM3U(data) {
 
       info = {
         name: name || "Kanal",
-        group: group && group[1] ? group[1] : "Diğer",
-        logo: logo && logo[1] ? logo[1] : "",
+        group: group?.[1] || "Diğer",
+        logo: logo?.[1] || "",
         url: ""
       };
     }
@@ -73,124 +79,142 @@ function parseM3U(data) {
   return channels;
 }
 
+function renderAll() {
+  renderCategories();
+  renderChannels();
+}
+
 function renderCategories() {
-  const box = document.getElementById("categories");
-  const groups = [...new Set(allChannels.map(c => c.group))].filter(Boolean);
+  const groups = [...new Set(allChannels.map(c => c.group))].filter(Boolean).slice(0, 40);
+  const cats = ["All", ...groups];
 
-  const mainGroups = ["All", ...groups.slice(0, 60)];
+  elCategories.innerHTML = "";
 
-  box.innerHTML = "";
-
-  mainGroups.forEach(cat => {
+  cats.forEach(cat => {
     const btn = document.createElement("button");
-    btn.className = "catBtn";
+    btn.className = "catBtn" + (cat === currentSection ? " active" : "");
     btn.innerText = cat;
-
-    if (cat === currentGroup) {
-      btn.style.border = "1px solid #ff2d55";
-    }
-
     btn.onclick = () => {
-      currentGroup = cat;
-      renderCategories();
-      renderChannels();
+      currentSection = cat;
+      updateNavButtons();
+      renderAll();
     };
-
-    box.appendChild(btn);
+    elCategories.appendChild(btn);
   });
 }
 
 function renderChannels() {
-  const box = document.getElementById("channels");
-  const search = document.getElementById("search").value.toLowerCase().trim();
+  let list = getFilteredChannels();
 
-  let list = currentGroup === "All"
-    ? allChannels
-    : allChannels.filter(c => c.group === currentGroup);
-
-  if (search) {
-    list = list.filter(c =>
-      c.name.toLowerCase().includes(search) ||
-      c.group.toLowerCase().includes(search)
-    );
-  }
-
-  const visibleList = list.slice(0, 500);
-
-  if (visibleList.length === 0) {
-    box.innerHTML = "<div class='channel'>Kanal bulunamadı</div>";
+  if (list.length === 0) {
+    elChannels.innerHTML = `<div class="card loading">Kanal bulunamadı</div>`;
     return;
   }
 
-  box.innerHTML = "";
+  const visible = list.slice(0, 600);
 
-  visibleList.forEach(ch => {
-    const div = document.createElement("div");
-    div.className = "channel";
+  elChannels.innerHTML = visible.map(ch => {
+    const fav = favorites.includes(ch.url) ? "⭐" : "☆";
 
-    div.innerHTML = `
-      <div style="display:flex;align-items:center;gap:12px;">
+    return `
+      <div class="card" onclick="playChannel('${encodeURIComponent(ch.url)}','${escapeAttr(ch.name)}','${escapeAttr(ch.group)}')">
+        <span class="fav" onclick="event.stopPropagation();toggleFavorite('${encodeURIComponent(ch.url)}')">${fav}</span>
         ${
           ch.logo
-            ? `<img src="${ch.logo}" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#222;">`
-            : `<div style="width:44px;height:44px;border-radius:8px;background:#222;display:flex;align-items:center;justify-content:center;">TV</div>`
+            ? `<img class="logo" src="${escapeAttr(ch.logo)}" onerror="this.style.display='none'">`
+            : `<div class="logo" style="display:flex;align-items:center;justify-content:center;">TV</div>`
         }
-        <div>
-          <div class="name">${escapeHtml(ch.name)}</div>
-          <div class="group">${escapeHtml(ch.group)}</div>
-        </div>
+        <div class="card-title">${escapeHtml(ch.name)}</div>
+        <div class="card-group">${escapeHtml(ch.group)}</div>
       </div>
     `;
+  }).join("");
 
-    div.onclick = () => playChannel(ch.url);
-    box.appendChild(div);
-  });
-
-  if (list.length > 500) {
-    const more = document.createElement("div");
-    more.className = "channel";
-    more.innerHTML = `İlk 500 kanal gösteriliyor. Arama yaparak diğer kanalları bulabilirsin. Toplam: ${list.length}`;
-    box.appendChild(more);
+  if (list.length > 600) {
+    elChannels.innerHTML += `<div class="card loading">İlk 600 kanal gösteriliyor. Arama ile daraltabilirsin. Toplam: ${list.length}</div>`;
   }
 }
 
-function playChannel(url) {
-  const video = document.getElementById("player");
+function getFilteredChannels() {
+  const q = elSearch.value.toLowerCase().trim();
+
+  let list = allChannels;
+
+  if (currentSection === "Favoriler") {
+    list = allChannels.filter(c => favorites.includes(c.url));
+  } else if (currentSection !== "All") {
+    list = allChannels.filter(c =>
+      c.group.toLowerCase().includes(currentSection.toLowerCase())
+    );
+  }
+
+  if (q) {
+    list = list.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.group.toLowerCase().includes(q)
+    );
+  }
+
+  return list;
+}
+
+function playChannel(encodedUrl, name, group) {
+  const url = decodeURIComponent(encodedUrl);
+
+  elNowTitle.innerText = name;
+  elNowGroup.innerText = group;
 
   if (currentHls) {
     currentHls.destroy();
     currentHls = null;
   }
 
-  video.pause();
-  video.removeAttribute("src");
-  video.load();
+  player.pause();
+  player.removeAttribute("src");
+  player.load();
 
   if (window.Hls && Hls.isSupported()) {
-    currentHls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: true
-    });
-
+    currentHls = new Hls({ enableWorker: true, lowLatencyMode: true });
     currentHls.loadSource(url);
-    currentHls.attachMedia(video);
-
-    currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play().catch(() => {});
-    });
-
-    currentHls.on(Hls.Events.ERROR, () => {
-      console.log("Yayın oynatma hatası:", url);
-    });
+    currentHls.attachMedia(player);
+    currentHls.on(Hls.Events.MANIFEST_PARSED, () => player.play().catch(() => {}));
   } else {
-    video.src = url;
-    video.play().catch(() => {});
+    player.src = url;
+    player.play().catch(() => {});
   }
 }
 
-function showLoading() {
-  document.getElementById("channels").innerHTML =
-    "<div class='channel'>Kanallar yükleniyor...</div>";
+function toggleFavorite(encodedUrl) {
+  const url = decodeURIComponent(encodedUrl);
+
+  if (favorites.includes(url)) {
+    favorites = favorites.filter(x => x !== url);
+  } else {
+    favorites.push(url);
+  }
+
+  localStorage.setItem("iptv_favorites", JSON.stringify(favorites));
+  renderChannels();
+}
+
+function updateNavButtons() {
+  document.querySelectorAll(".nav").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.section === currentSection);
+  });
+}
+
+document.querySelectorAll(".nav").forEach(btn => {
+  btn.onclick = () => {
+    currentSection = btn.dataset.section;
+    updateNavButtons();
+    renderAll();
+  };
+});
+
+elSearch.addEventListener("input", renderChannels);
+
+function setStatus(text) {
+  elStatus.innerText = text;
 }
 
 function sleep(ms) {
@@ -206,6 +230,8 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
-document.getElementById("search").addEventListener("input", renderChannels);
+function escapeAttr(text) {
+  return escapeHtml(text).replaceAll("`", "&#096;");
+}
 
 loadM3U();
