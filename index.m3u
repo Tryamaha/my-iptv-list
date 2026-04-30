@@ -1,4 +1,13 @@
 #EXTM3U
 
-#EXTINF:-1 tvg-name="TRT Haber" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/TRT_Haber_logo.svg/512px-TRT_Haber_logo.svg.png" group-title="Haber",TRT Haber
+#EXTINF:-1 group-title="Haber",TRT Haber
 https://tv-trthaber.medya.trt.com.tr/master.m3u8
+
+#EXTINF:-1 group-title="Haber",TRT Türk
+https://tv-trtturk.medya.trt.com.tr/master.m3u8
+
+#EXTINF:-1 group-title="Çocuk",TRT Çocuk
+https://tv-trtcocuk.medya.trt.com.tr/master.m3u8
+
+#EXTINF:-1 group-title="Belgesel",TRT Belgesel
+https://tv-trtbelgesel.medya.trt.com.tr/master.m3u8
