@@ -1,60 +1,48 @@
 const playlists = [
   "./index.m3u?nocache=" + Date.now(),
-
-  "https://iptv-org.github.io/iptv/index.m3u",
+  "https://iptv-org.github.io/iptv/countries/tr.m3u",
   "https://iptv-org.github.io/iptv/categories/sports.m3u",
-  "https://iptv-org.github.io/iptv/categories/movies.m3u",
   "https://iptv-org.github.io/iptv/categories/documentary.m3u",
-  "https://iptv-org.github.io/iptv/categories/kids.m3u",
+  "https://iptv-org.github.io/iptv/categories/movies.m3u",
   "https://iptv-org.github.io/iptv/categories/news.m3u",
   "https://iptv-org.github.io/iptv/categories/music.m3u",
-  "https://iptv-org.github.io/iptv/categories/entertainment.m3u",
-
-  "https://iptv-org.github.io/iptv/countries/tr.m3u",
+  "https://iptv-org.github.io/iptv/categories/kids.m3u",
   "https://iptv-org.github.io/iptv/countries/us.m3u",
-  "https://iptv-org.github.io/iptv/countries/gb.m3u",
-  "https://iptv-org.github.io/iptv/countries/de.m3u",
-  "https://iptv-org.github.io/iptv/countries/fr.m3u",
-  "https://iptv-org.github.io/iptv/countries/es.m3u",
-  "https://iptv-org.github.io/iptv/countries/it.m3u",
-  "https://iptv-org.github.io/iptv/countries/nl.m3u",
-  "https://iptv-org.github.io/iptv/countries/pt.m3u",
-  "https://iptv-org.github.io/iptv/countries/br.m3u",
-  "https://iptv-org.github.io/iptv/countries/mx.m3u",
-  "https://iptv-org.github.io/iptv/countries/ar.m3u",
-  "https://iptv-org.github.io/iptv/countries/ca.m3u",
-  "https://iptv-org.github.io/iptv/countries/au.m3u",
-  "https://iptv-org.github.io/iptv/countries/jp.m3u",
-  "https://iptv-org.github.io/iptv/countries/kr.m3u",
-  "https://iptv-org.github.io/iptv/countries/in.m3u",
-  "https://iptv-org.github.io/iptv/countries/ae.m3u",
-  "https://iptv-org.github.io/iptv/countries/sa.m3u",
-  "https://iptv-org.github.io/iptv/countries/eg.m3u"
+  "https://iptv-org.github.io/iptv/countries/gb.m3u"
 ];
 
 let allChannels = [];
 let currentGroup = "All";
+let loadedUrls = new Set();
 
 async function loadM3U() {
   document.getElementById("channels").innerHTML =
     "<div class='channel'>Kanallar yükleniyor...</div>";
 
-  for (const url of playlists) {
+  for (let i = 0; i < playlists.length; i++) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(playlists[i]);
       const text = await res.text();
       parseM3U(text);
+
+      allChannels = allChannels.filter(ch => {
+        if (loadedUrls.has(ch.url)) return false;
+        loadedUrls.add(ch.url);
+        return true;
+      });
+
+      if (i === 0 || i === 1) {
+        renderCategories();
+        renderChannels();
+      }
+
+      await new Promise(r => setTimeout(r, 300));
     } catch (e) {
-      console.log("Yüklenemedi:", url);
+      console.log("Hata:", playlists[i]);
     }
   }
 
-  allChannels = allChannels.filter(
-    (ch, i, arr) => i === arr.findIndex(x => x.url === ch.url)
-  );
-
   allChannels.sort((a, b) => a.name.localeCompare(b.name, "tr"));
-
   renderCategories();
   renderChannels();
 }
@@ -74,7 +62,8 @@ function parseM3U(data) {
       info = {
         name: name || "Kanal",
         group: group && group[1] ? group[1] : "Diğer",
-        logo: logo && logo[1] ? logo[1] : ""
+        logo: logo && logo[1] ? logo[1] : "",
+        url: ""
       };
     }
 
@@ -88,7 +77,7 @@ function parseM3U(data) {
 
 function renderCategories() {
   const box = document.getElementById("categories");
-  const cats = ["All", ...new Set(allChannels.map(c => c.group))];
+  const cats = ["All", ...new Set(allChannels.map(c => c.group).slice(0,50))];
 
   box.innerHTML = "";
 
@@ -117,6 +106,8 @@ function renderChannels() {
     c.group.toLowerCase().includes(search)
   );
 
+  list = list.slice(0, 300);
+
   if (list.length === 0) {
     box.innerHTML = "<div class='channel'>Kanal bulunamadı</div>";
     return;
@@ -130,7 +121,7 @@ function renderChannels() {
 
     div.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;">
-        ${ch.logo ? `<img src="${ch.logo}" style="width:46px;height:46px;object-fit:contain;border-radius:8px;background:#222;">` : ""}
+        ${ch.logo ? `<img src="${ch.logo}" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#222;">` : ""}
         <div>
           <div class="name">${ch.name}</div>
           <div class="group">${ch.group}</div>
@@ -156,9 +147,7 @@ function playChannel(url) {
     window.currentHls = hls;
     hls.loadSource(url);
     hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play();
-    });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
   } else {
     video.src = url;
     video.play();
