@@ -2,23 +2,52 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My IPTV</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>My IPTV Center</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
+
 <body>
-  <header>
-    <h1>My IPTV</h1>
-    <input id="search" placeholder="Kanal ara..." />
-  </header>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">IPTV</div>
 
-  <video id="player" controls playsinline></video>
+      <button class="nav active" data-section="All">🏠 Ana Sayfa</button>
+      <button class="nav" data-section="Spor">⚽ Spor</button>
+      <button class="nav" data-section="Belgesel">🌍 Belgesel</button>
+      <button class="nav" data-section="Sinema">🎬 Sinema</button>
+      <button class="nav" data-section="Haber">📰 Haber</button>
+      <button class="nav" data-section="Çocuk">🧒 Çocuk</button>
+      <button class="nav" data-section="Müzik">🎵 Müzik</button>
+      <button class="nav" data-section="Favoriler">⭐ Favoriler</button>
+    </aside>
 
-  <main>
-    <div id="categories"></div>
-    <div id="channels"></div>
-  </main>
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1>My IPTV Center</h1>
+          <p id="status">Kanallar hazırlanıyor...</p>
+        </div>
+        <input id="search" placeholder="Kanal, kategori veya ülke ara..." />
+      </header>
+
+      <section class="hero">
+        <video id="player" controls playsinline></video>
+        <div class="now">
+          <div class="label">Şimdi oynatılıyor</div>
+          <h2 id="nowTitle">Kanal seç</h2>
+          <p id="nowGroup">Kodi tarzı medya merkezi</p>
+        </div>
+      </section>
+
+      <section class="chips" id="categories"></section>
+
+      <section class="grid" id="channels">
+        <div class="card loading">Kanallar yükleniyor...</div>
+      </section>
+    </main>
+  </div>
 
   <script src="app.js"></script>
 </body>
